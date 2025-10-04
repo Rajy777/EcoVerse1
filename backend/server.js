@@ -16,66 +16,74 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Verify OpenAI API key is loaded
+if (!process.env.OPENAI_API_KEY) {
+  console.error('⚠️  OpenAI API key not found in environment variables!');
+} else {
+  console.log('✅ OpenAI API key loaded successfully (length:', process.env.OPENAI_API_KEY.length, 'characters)');
+}
+
 // Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(morgan('combined'));
 
-// MongoDB connection
+// MongoDB connection (optional)
+let mongoConnected = false;
+let User, City, Chat; // These will be initialized only if MongoDB connects
+
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ecoverse');
     console.log('MongoDB connected successfully');
+    mongoConnected = true;
+    
+    // Initialize schemas only after successful connection
+    const userSchema = new mongoose.Schema({
+      email: { type: String, required: true, unique: true },
+      password: { type: String, required: true },
+      name: { type: String, required: true },
+      role: { type: String, enum: ['citizen', 'planner', 'leader', 'researcher'], default: 'citizen' },
+      city: String,
+      createdAt: { type: Date, default: Date.now }
+    });
+    
+    const citySchema = new mongoose.Schema({
+      name: String,
+      state: { type: String, default: 'Maharashtra' },
+      region: String,
+      coordinates: {
+        lat: Number,
+        lng: Number
+      },
+      data: {
+        temperature: Number,
+        aqi: Number,
+        ndvi: Number,
+        population: String,
+        risk: { type: String, enum: ['low', 'moderate', 'high'] }
+      },
+      lastUpdated: { type: Date, default: Date.now }
+    });
+    
+    const chatSchema = new mongoose.Schema({
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      message: String,
+      response: String,
+      timestamp: { type: Date, default: Date.now },
+      context: String
+    });
+    
+    User = mongoose.model('User', userSchema);
+    City = mongoose.model('City', citySchema);
+    Chat = mongoose.model('Chat', chatSchema);
+    
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.warn('MongoDB connection failed, using in-memory data:', error.message);
+    mongoConnected = false;
   }
 };
-
-// User Schema
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  name: { type: String, required: true },
-  role: { type: String, enum: ['citizen', 'planner', 'leader', 'researcher'], default: 'citizen' },
-  city: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-
-// City Data Schema
-const citySchema = new mongoose.Schema({
-  name: String,
-  state: { type: String, default: 'Maharashtra' },
-  region: String,
-  coordinates: {
-    lat: Number,
-    lng: Number
-  },
-  data: {
-    temperature: Number,
-    aqi: Number,
-    ndvi: Number,
-    population: String,
-    risk: { type: String, enum: ['low', 'moderate', 'high'] }
-  },
-  lastUpdated: { type: Date, default: Date.now }
-});
-
-const City = mongoose.model('City', citySchema);
-
-// AI Chat Schema
-const chatSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  message: String,
-  response: String,
-  timestamp: { type: Date, default: Date.now },
-  context: String
-});
-
-const Chat = mongoose.model('Chat', chatSchema);
 
 // Mock data for Maharashtra cities
 const maharashtraCities = [
@@ -117,16 +125,30 @@ const maharashtraCities = [
   }
 ];
 
+// In-memory data store (fallback when MongoDB is not available)
+let inMemoryCities = [];
+let inMemoryUsers = [];
+let inMemoryChats = [];
+
 // Initialize database with sample data
 const initializeData = async () => {
   try {
-    const cityCount = await City.countDocuments();
-    if (cityCount === 0) {
-      await City.insertMany(maharashtraCities);
-      console.log('Sample city data inserted');
+    if (mongoConnected) {
+      const cityCount = await City.countDocuments();
+      if (cityCount === 0) {
+        await City.insertMany(maharashtraCities);
+        console.log('Sample city data inserted to MongoDB');
+      }
+    } else {
+      // Use in-memory data when MongoDB is not available
+      inMemoryCities = [...maharashtraCities];
+      console.log('Using in-memory city data (MongoDB not available)');
     }
   } catch (error) {
     console.error('Error initializing data:', error);
+    // Fallback to in-memory data
+    inMemoryCities = [...maharashtraCities];
+    mongoConnected = false;
   }
 };
 
@@ -155,8 +177,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Auth Routes
+// Auth Routes (disabled when MongoDB is not available)
 app.post('/api/auth/register', async (req, res) => {
+  if (!mongoConnected || !User) {
+    return res.status(503).json({ message: 'Authentication service temporarily unavailable - database not connected' });
+  }
+  
   try {
     const { email, password, name, role, city } = req.body;
     
@@ -205,6 +231,10 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
+  if (!mongoConnected || !User) {
+    return res.status(503).json({ message: 'Authentication service temporarily unavailable - database not connected' });
+  }
+  
   try {
     const { email, password } = req.body;
 
@@ -247,21 +277,34 @@ app.post('/api/auth/login', async (req, res) => {
 // Cities Routes
 app.get('/api/cities', async (req, res) => {
   try {
-    const cities = await City.find();
-    res.json(cities);
+    if (mongoConnected) {
+      const cities = await City.find();
+      res.json(cities);
+    } else {
+      res.json(inMemoryCities);
+    }
   } catch (error) {
     console.error('Error fetching cities:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.json(inMemoryCities); // Fallback to in-memory data
   }
 });
 
 app.get('/api/cities/:name', async (req, res) => {
   try {
-    const city = await City.findOne({ name: new RegExp(req.params.name, 'i') });
-    if (!city) {
-      return res.status(404).json({ message: 'City not found' });
+    if (mongoConnected && City) {
+      const city = await City.findOne({ name: new RegExp(req.params.name, 'i') });
+      if (!city) {
+        return res.status(404).json({ message: 'City not found' });
+      }
+      res.json(city);
+    } else {
+      // Search in-memory data
+      const city = inMemoryCities.find(c => c.name.toLowerCase().includes(req.params.name.toLowerCase()));
+      if (!city) {
+        return res.status(404).json({ message: 'City not found' });
+      }
+      res.json(city);
     }
-    res.json(city);
   } catch (error) {
     console.error('Error fetching city:', error);
     res.status(500).json({ message: 'Server error' });
@@ -271,7 +314,7 @@ app.get('/api/cities/:name', async (req, res) => {
 // Environmental Data Routes
 app.get('/api/environmental/dashboard', async (req, res) => {
   try {
-    const cities = await City.find();
+    const cities = mongoConnected ? await City.find() : inMemoryCities;
     
     // Calculate statistics
     const totalCities = cities.length;
@@ -306,7 +349,7 @@ app.get('/api/environmental/dashboard', async (req, res) => {
 });
 
 // AI Chat Routes
-app.post('/api/ai/chat', authenticateToken, async (req, res) => {
+app.post('/api/ai/chat', async (req, res) => {
   try {
     const { message, context } = req.body;
     
@@ -326,8 +369,9 @@ app.post('/api/ai/chat', authenticateToken, async (req, res) => {
     
     Keep responses concise, actionable, and relevant to Maharashtra's environmental challenges.`;
 
+    console.log('Making OpenAI API request...');
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message }
@@ -335,17 +379,24 @@ app.post('/api/ai/chat', authenticateToken, async (req, res) => {
       max_tokens: 500,
       temperature: 0.7
     });
+    console.log('OpenAI API request successful');
 
     const response = completion.choices[0].message.content;
 
-    // Save chat to database
-    const chat = new Chat({
-      userId: req.user.userId,
-      message,
-      response,
-      context
-    });
-    await chat.save();
+    // Save chat to database only if MongoDB is connected
+    if (mongoConnected && Chat) {
+      try {
+        const chat = new Chat({
+          userId: null, // No authentication required for now
+          message,
+          response,
+          context
+        });
+        await chat.save();
+      } catch (dbError) {
+        console.log('Chat not saved to database:', dbError.message);
+      }
+    }
 
     res.json({ 
       response,
@@ -353,22 +404,26 @@ app.post('/api/ai/chat', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('AI Chat error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error status:', error.status);
+    console.error('Error code:', error.code);
     
     // Fallback response if OpenAI fails
-    const fallbackResponse = "I'm currently experiencing technical difficulties. Please try again later or contact support for assistance with your environmental data inquiry.";
+    const fallbackResponse = `I'm currently experiencing technical difficulties. Error: ${error.message || 'Unknown error'}. Please try again later or contact support for assistance with your environmental data inquiry.`;
     
     res.json({ 
       response: fallbackResponse,
       timestamp: new Date().toISOString(),
-      fallback: true
+      fallback: true,
+      error: error.message
     });
   }
 });
 
-app.get('/api/ai/insights', authenticateToken, async (req, res) => {
+app.get('/api/ai/insights', async (req, res) => {
   try {
     // Generate AI insights based on current data
-    const cities = await City.find();
+    const cities = mongoConnected && City ? await City.find() : inMemoryCities;
     
     const insights = [
       {
@@ -412,39 +467,74 @@ app.post('/api/cities/filter', async (req, res) => {
   try {
     const { temperatureRange, aqiRange, ndviRange, regions } = req.body;
     
-    let query = {};
-    
-    // Temperature filter
-    if (temperatureRange) {
-      query['data.temperature'] = {
-        $gte: temperatureRange.min,
-        $lte: temperatureRange.max
-      };
+    if (mongoConnected && City) {
+      // Use MongoDB for filtering
+      let query = {};
+      
+      // Temperature filter
+      if (temperatureRange) {
+        query['data.temperature'] = {
+          $gte: temperatureRange.min,
+          $lte: temperatureRange.max
+        };
+      }
+      
+      // AQI filter
+      if (aqiRange) {
+        query['data.aqi'] = {
+          $gte: aqiRange.min,
+          $lte: aqiRange.max
+        };
+      }
+      
+      // NDVI filter
+      if (ndviRange) {
+        query['data.ndvi'] = {
+          $gte: ndviRange.min,
+          $lte: ndviRange.max
+        };
+      }
+      
+      // Region filter
+      if (regions && regions.length > 0) {
+        query.region = { $in: regions };
+      }
+      
+      const filteredCities = await City.find(query);
+      res.json(filteredCities);
+    } else {
+      // Use in-memory filtering
+      let filteredCities = [...inMemoryCities];
+      
+      if (temperatureRange) {
+        filteredCities = filteredCities.filter(city => 
+          city.data.temperature >= temperatureRange.min && 
+          city.data.temperature <= temperatureRange.max
+        );
+      }
+      
+      if (aqiRange) {
+        filteredCities = filteredCities.filter(city => 
+          city.data.aqi >= aqiRange.min && 
+          city.data.aqi <= aqiRange.max
+        );
+      }
+      
+      if (ndviRange) {
+        filteredCities = filteredCities.filter(city => 
+          city.data.ndvi >= ndviRange.min && 
+          city.data.ndvi <= ndviRange.max
+        );
+      }
+      
+      if (regions && regions.length > 0) {
+        filteredCities = filteredCities.filter(city => 
+          regions.includes(city.region)
+        );
+      }
+      
+      res.json(filteredCities);
     }
-    
-    // AQI filter
-    if (aqiRange) {
-      query['data.aqi'] = {
-        $gte: aqiRange.min,
-        $lte: aqiRange.max
-      };
-    }
-    
-    // NDVI filter
-    if (ndviRange) {
-      query['data.ndvi'] = {
-        $gte: ndviRange.min,
-        $lte: ndviRange.max
-      };
-    }
-    
-    // Region filter
-    if (regions && regions.length > 0) {
-      query.region = { $in: regions };
-    }
-    
-    const filteredCities = await City.find(query);
-    res.json(filteredCities);
   } catch (error) {
     console.error('Error filtering cities:', error);
     res.status(500).json({ message: 'Server error' });
@@ -458,7 +548,7 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 

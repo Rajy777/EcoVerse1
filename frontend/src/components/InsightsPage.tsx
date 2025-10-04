@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Brain, Sparkles, TrendingUp, AlertTriangle, Lightbulb, MessageSquare } from 'lucide-react';
+import { BarChart as RechartsBarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Brain, Sparkles, TrendingUp, AlertTriangle, Lightbulb, MessageSquare, MapPin, BarChart3 as BarChart } from 'lucide-react';
+import EnvironmentalMap from './EnvironmentalMap';
 
 // Mock data for insights
 const cityComparison = [
@@ -110,14 +111,70 @@ const InsightCard = ({ insight }: { insight: any }) => {
 
 const InsightsPage = () => {
   const [activeInsight, setActiveInsight] = useState('all');
+  const [activeView, setActiveView] = useState('charts'); // 'charts' or 'map'
   const [chatMessage, setChatMessage] = useState('');
+  const [chatResponse, setChatResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [cities, setCities] = useState([]);
+  const [insights, setInsights] = useState(aiInsights);
+  const [backendInsights, setBackendInsights] = useState([]);
 
-  const handleChatSubmit = (e: React.FormEvent) => {
+  // Fetch data from backend on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch cities data
+        const citiesResponse = await fetch('http://localhost:5000/api/cities');
+        if (citiesResponse.ok) {
+          const citiesData = await citiesResponse.json();
+          setCities(citiesData);
+        }
+
+        // Fetch AI insights
+        const insightsResponse = await fetch('http://localhost:5000/api/ai/insights');
+        if (insightsResponse.ok) {
+          const insightsData = await insightsResponse.json();
+          setBackendInsights(insightsData.insights || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (chatMessage.trim()) {
-      // Here you would integrate with GPT API
-      console.log('Sending to AI:', chatMessage);
-      setChatMessage('');
+      setIsLoading(true);
+      setChatResponse('');
+      
+      try {
+        const response = await fetch('http://localhost:5000/api/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: chatMessage,
+            context: 'Environmental data analysis for Maharashtra cities'
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setChatResponse(data.response);
+        } else {
+          setChatResponse('Sorry, I encountered an error. Please try again.');
+        }
+      } catch (error) {
+        console.error('AI Chat error:', error);
+        setChatResponse('Unable to connect to AI service. Please ensure the backend is running.');
+      } finally {
+        setIsLoading(false);
+        setChatMessage('');
+      }
     }
   };
 
@@ -129,15 +186,60 @@ const InsightsPage = () => {
         transition={{ duration: 0.8 }}
         className="mb-8"
       >
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-green-200 bg-clip-text text-transparent">
-          AI-Powered Insights
-        </h1>
-        <p className="text-gray-400 text-lg">Advanced environmental analysis and predictions</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-green-200 bg-clip-text text-transparent">
+              AI-Powered Insights
+            </h1>
+            <p className="text-gray-400 text-lg">Advanced environmental analysis and predictions</p>
+          </div>
+          
+          {/* View Toggle */}
+          <div className="flex space-x-2 bg-white/5 rounded-lg p-1">
+            <button
+              onClick={() => setActiveView('charts')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 flex items-center space-x-2 ${
+                activeView === 'charts'
+                  ? 'bg-white/20 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <BarChart size={18} />
+              <span>Charts</span>
+            </button>
+            <button
+              onClick={() => setActiveView('map')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 flex items-center space-x-2 ${
+                activeView === 'map'
+                  ? 'bg-white/20 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <MapPin size={18} />
+              <span>Map View</span>
+            </button>
+          </div>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* AI Chat Interface */}
+        {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-6">
+          {activeView === 'map' ? (
+            /* Map View */
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <EnvironmentalMap 
+                cities={cities} 
+                insights={backendInsights.length > 0 ? backendInsights : insights}
+              />
+            </motion.div>
+          ) : (
+            /* Charts View */
+            <>
           {/* City Performance Chart */}
           <motion.div
             className="glass rounded-xl p-6"
@@ -147,7 +249,7 @@ const InsightsPage = () => {
           >
             <h3 className="text-xl font-semibold text-white mb-4">City Environmental Performance</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cityComparison}>
+              <RechartsBarChart data={cityComparison}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="city" stroke="#9CA3AF" />
                 <YAxis stroke="#9CA3AF" />
@@ -159,7 +261,7 @@ const InsightsPage = () => {
                   }}
                 />
                 <Bar dataKey="score" fill="#0EA5E9" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              </RechartsBarChart>
             </ResponsiveContainer>
           </motion.div>
 
@@ -220,12 +322,29 @@ const InsightsPage = () => {
               <Brain className="w-6 h-6 text-eco-blue" />
               <h3 className="text-xl font-semibold text-white">Ask AI Assistant</h3>
               <Sparkles className="w-5 h-5 text-yellow-400" />
+              <div className="flex items-center space-x-2 ml-auto">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-xs text-green-400 font-medium">OpenAI GPT-4 Connected</span>
+              </div>
             </div>
             
-            <div className="bg-white/5 rounded-lg p-4 mb-4 min-h-32">
-              <div className="text-gray-400 text-sm">
+            <div className="bg-white/5 rounded-lg p-4 mb-4 min-h-32 max-h-64 overflow-y-auto">
+              <div className="text-gray-400 text-sm mb-3">
                 AI: Hello! I can help you analyze environmental data, predict trends, and provide insights about Maharashtra cities. What would you like to know?
               </div>
+              {isLoading && (
+                <div className="flex items-center space-x-2 text-eco-blue">
+                  <div className="w-4 h-4 border-2 border-eco-blue border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm">AI is thinking...</span>
+                </div>
+              )}
+              {chatResponse && (
+                <div className="mt-3 p-3 bg-white/10 rounded-lg">
+                  <div className="text-white text-sm whitespace-pre-wrap">
+                    AI: {chatResponse}
+                  </div>
+                </div>
+              )}
             </div>
             
             <form onSubmit={handleChatSubmit} className="flex space-x-3">
@@ -238,9 +357,14 @@ const InsightsPage = () => {
               />
               <button
                 type="submit"
-                className="bg-gradient-to-r from-eco-blue to-eco-green px-6 py-2 rounded-lg text-white font-medium hover:shadow-lg transition-all duration-300"
+                disabled={isLoading}
+                className={`px-6 py-2 rounded-lg text-white font-medium transition-all duration-300 ${
+                  isLoading 
+                    ? 'bg-gray-600 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-eco-blue to-eco-green hover:shadow-lg'
+                }`}
               >
-                Send
+                {isLoading ? 'Sending...' : 'Send'}
               </button>
             </form>
             
@@ -261,6 +385,8 @@ const InsightsPage = () => {
               ))}
             </div>
           </motion.div>
+            </>
+          )}
         </div>
 
         {/* AI Insights Panel */}
@@ -290,7 +416,7 @@ const InsightsPage = () => {
             </div>
             
             <div className="space-y-4">
-              {aiInsights
+              {(backendInsights.length > 0 ? backendInsights : insights)
                 .filter(insight => activeInsight === 'all' || insight.type === activeInsight)
                 .map((insight) => (
                   <InsightCard key={insight.id} insight={insight} />

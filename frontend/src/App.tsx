@@ -4,7 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Sphere, MeshDistortMaterial } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Home, Dashboard, Insights, Info, Filter, TrendingUp, 
+  Home, LayoutDashboard, BarChart3, Info, Filter, TrendingUp, 
   MapPin, Thermometer, Wind, Droplets, Leaf 
 } from 'lucide-react';
 import MainDashboard from './components/MainDashboard';
@@ -16,16 +16,38 @@ import './index.css';
 // 3D Earth Component
 const Earth3D = () => {
   return (
-    <Sphere args={[2.5, 64, 32]}>
-      <MeshDistortMaterial
-        color="#1e40af"
-        attach="material"
-        distort={0.3}
-        speed={2}
-        roughness={0.4}
-        metalness={0.8}
-      />
-    </Sphere>
+    <group>
+      {/* Main Earth Sphere */}
+      <Sphere args={[2.5, 64, 32]}>
+        <meshStandardMaterial
+          color="#4A90E2"
+          roughness={0.8}
+          metalness={0.1}
+          transparent={true}
+          opacity={0.9}
+        />
+      </Sphere>
+      
+      {/* Land masses - simplified green patches */}
+      <Sphere args={[2.51, 32, 16]}>
+        <meshBasicMaterial
+          color="#10B981"
+          transparent={true}
+          opacity={0.6}
+          wireframe={true}
+        />
+      </Sphere>
+      
+      {/* Atmosphere glow effect */}
+      <Sphere args={[2.8, 32, 16]}>
+        <meshBasicMaterial
+          color="#60A5FA"
+          transparent={true}
+          opacity={0.1}
+          side={1} // BackSide
+        />
+      </Sphere>
+    </group>
   );
 };
 
@@ -92,8 +114,8 @@ const Header = ({ currentPage, setCurrentPage }: {
         <nav className="flex items-center space-x-6">
           {[
             { id: 'home', label: 'Home', icon: Home },
-            { id: 'dashboard', label: 'Dashboard', icon: Dashboard },
-            { id: 'insights', label: 'Insights', icon: Insights },
+            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { id: 'insights', label: 'Insights', icon: BarChart3 },
             { id: 'about', label: 'About', icon: Info },
           ].map(({ id, label, icon: Icon }) => (
             <button

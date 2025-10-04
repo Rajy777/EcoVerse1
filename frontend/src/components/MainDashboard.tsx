@@ -157,10 +157,18 @@ const MainDashboard = () => {
         transition={{ duration: 0.8 }}
         className="mb-8"
       >
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-green-200 bg-clip-text text-transparent">
-          Environmental Dashboard
-        </h1>
-        <p className="text-gray-400 text-lg">Real-time monitoring across 34 Maharashtra cities</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-green-200 bg-clip-text text-transparent">
+              Environmental Dashboard
+            </h1>
+            <p className="text-gray-400 text-lg">Real-time monitoring across 34 Maharashtra cities</p>
+          </div>
+          <div className="flex items-center space-x-2 bg-green-500/20 border border-green-500/30 rounded-lg px-4 py-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-green-400 text-sm font-medium">🤖 AI Assistant Active</span>
+          </div>
+        </div>
       </motion.div>
 
       {/* Statistics Cards */}
