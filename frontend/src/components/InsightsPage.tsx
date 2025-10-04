@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { BarChart as RechartsBarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Brain, Sparkles, TrendingUp, AlertTriangle, Lightbulb, MessageSquare, MapPin, BarChart3 as BarChart } from 'lucide-react';
 import EnvironmentalMap from './EnvironmentalMap';
+import ZoneAnalysis from './ZoneAnalysis';
 
 // Mock data for insights
 const cityComparison = [
@@ -111,7 +112,8 @@ const InsightCard = ({ insight }: { insight: any }) => {
 
 const InsightsPage = () => {
   const [activeInsight, setActiveInsight] = useState('all');
-  const [activeView, setActiveView] = useState('charts'); // 'charts' or 'map'
+  const [activeView, setActiveView] = useState('charts'); // 'charts' or 'map' or 'zones'
+  const [selectedCity, setSelectedCity] = useState('Mumbai');
   const [chatMessage, setChatMessage] = useState('');
   const [chatResponse, setChatResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -218,6 +220,17 @@ const InsightsPage = () => {
               <MapPin size={18} />
               <span>Map View</span>
             </button>
+            <button
+              onClick={() => setActiveView('zones')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 flex items-center space-x-2 ${
+                activeView === 'zones'
+                  ? 'bg-white/20 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Brain size={18} />
+              <span>Zone Analysis</span>
+            </button>
           </div>
         </div>
       </motion.div>
@@ -225,7 +238,38 @@ const InsightsPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-6">
-          {activeView === 'map' ? (
+          {activeView === 'zones' ? (
+            /* Zone Analysis View */
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-4"
+            >
+              {/* City Selector */}
+              <div className="glass rounded-xl p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Select City for Analysis</h3>
+                <div className="flex flex-wrap gap-2">
+                  {['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Aurangabad', 'Thane'].map((city) => (
+                    <button
+                      key={city}
+                      onClick={() => setSelectedCity(city)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedCity === city
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                      }`}
+                    >
+                      {city}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Zone Analysis Component */}
+              <ZoneAnalysis cityName={selectedCity} />
+            </motion.div>
+          ) : activeView === 'map' ? (
             /* Map View */
             <motion.div
               initial={{ opacity: 0, y: 20 }}
