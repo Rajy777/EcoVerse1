@@ -11,6 +11,7 @@ import MainDashboard from './components/MainDashboard';
 import FilterPanel from './components/FilterPanel';
 import InsightsPage from './components/InsightsPage';
 import AboutPage from './components/AboutPage';
+import AuthFlow from './components/auth/AuthFlow';
 import './index.css';
 
 // 3D Earth Component
@@ -89,9 +90,13 @@ const Particles = () => {
 };
 
 // Header Navigation
-const Header = ({ currentPage, setCurrentPage }: { 
+const Header = ({ currentPage, setCurrentPage, isAuthenticated, user, userRole, onLogout }: { 
   currentPage: string, 
-  setCurrentPage: (page: string) => void 
+  setCurrentPage: (page: string) => void,
+  isAuthenticated: boolean,
+  user: any,
+  userRole: string | null,
+  onLogout: () => void
 }) => {
   return (
     <motion.header 
@@ -133,9 +138,27 @@ const Header = ({ currentPage, setCurrentPage }: {
           ))}
         </nav>
 
-        <button className="bg-gradient-to-r from-eco-blue to-eco-green px-6 py-2 rounded-lg text-white font-medium hover:shadow-lg hover:shadow-eco-blue/25 transition-all duration-300">
-          Explore Dashboard
-        </button>
+        {isAuthenticated ? (
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-white font-medium">{user?.fullName}</p>
+              <p className="text-xs text-gray-300 capitalize">{userRole?.replace('-', ' ')}</p>
+            </div>
+            <button 
+              onClick={onLogout}
+              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setCurrentPage('auth')}
+            className="bg-gradient-to-r from-eco-blue to-eco-green px-6 py-2 rounded-lg text-white font-medium hover:shadow-lg hover:shadow-eco-blue/25 transition-all duration-300"
+          >
+            Sign In
+          </button>
+        )}
       </div>
     </motion.header>
   );
@@ -145,6 +168,36 @@ const Header = ({ currentPage, setCurrentPage }: {
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [showFilters, setShowFilters] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Check for existing authentication on app load
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('ecoverse-auth');
+    if (savedAuth) {
+      const authData = JSON.parse(savedAuth);
+      setIsAuthenticated(true);
+      setUser(authData.user);
+      setUserRole(authData.role);
+    }
+  }, []);
+
+  const handleAuthComplete = (userData: any, role: string) => {
+    const authData = { user: userData, role };
+    localStorage.setItem('ecoverse-auth', JSON.stringify(authData));
+    setIsAuthenticated(true);
+    setUser(userData);
+    setUserRole(role);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('ecoverse-auth');
+    setIsAuthenticated(false);
+    setUser(null);
+    setUserRole(null);
+    setCurrentPage('home');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white overflow-hidden">
@@ -163,7 +216,14 @@ function App() {
       </div>
 
       {/* Header */}
-      <Header currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Header 
+        currentPage={currentPage} 
+        setCurrentPage={setCurrentPage}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        userRole={userRole}
+        onLogout={handleLogout}
+      />
 
       {/* Main Content */}
       <main className="relative z-10 pt-20">
@@ -253,6 +313,18 @@ function App() {
               transition={{ duration: 0.5 }}
             >
               <AboutPage />
+            </motion.div>
+          )}
+
+          {currentPage === 'auth' && !isAuthenticated && (
+            <motion.div
+              key="auth"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <AuthFlow onAuthComplete={handleAuthComplete} />
             </motion.div>
           )}
         </AnimatePresence>
