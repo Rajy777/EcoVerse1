@@ -159,32 +159,32 @@ const ZoneAnalysis: React.FC<ZoneAnalysisProps> = ({ cityName }) => {
         <p className="text-sm text-gray-600 mb-2">{zone.type.replace(/-/g, ' ')}</p>
         
         <div className="space-y-2 text-sm">
-          <div className="bg-red-50 p-2 rounded">
-            <strong>🔥 Hotspot Analysis:</strong>
-            <br />Category: {zone.analysis.hotspot.category.replace(/-/g, ' ')}
-            <br />Temperature: +{zone.analysis.hotspot.temperatureDifferential}°C above city avg
-            <br />Cooling Potential: {zone.analysis.hotspot.coolingPotential}°C
+          <div className="bg-red-100 border border-red-200 p-2 rounded">
+            <strong className="text-red-900">🔥 Hotspot Analysis:</strong>
+            <br /><span className="text-red-800">Category: {zone.analysis.hotspot.category.replace(/-/g, ' ')}</span>
+            <br /><span className="text-red-800">Temperature: +{zone.analysis.hotspot.temperatureDifferential}°C above city avg</span>
+            <br /><span className="text-red-800">Cooling Potential: {zone.analysis.hotspot.coolingPotential}°C</span>
           </div>
           
-          <div className="bg-green-50 p-2 rounded">
-            <strong>🌳 Park Recommendation:</strong>
-            <br />Type: {zone.analysis.parkRecommendation.parkType.replace(/-/g, ' ')}
-            <br />Trees Needed: {zone.analysis.parkRecommendation.treesNeeded}
-            <br />Projected Cooling: {zone.analysis.parkRecommendation.projectedCooling}°C
+          <div className="bg-green-100 border border-green-200 p-2 rounded">
+            <strong className="text-green-900">🌳 Park Recommendation:</strong>
+            <br /><span className="text-green-800">Type: {zone.analysis.parkRecommendation.parkType.replace(/-/g, ' ')}</span>
+            <br /><span className="text-green-800">Trees Needed: {zone.analysis.parkRecommendation.treesNeeded}</span>
+            <br /><span className="text-green-800">Projected Cooling: {zone.analysis.parkRecommendation.projectedCooling}°C</span>
           </div>
           
-          <div className="bg-blue-50 p-2 rounded">
-            <strong>🏥 Clinic Recommendation:</strong>
-            <br />Type: {zone.analysis.clinicRecommendation.clinicType.replace(/-/g, ' ')}
-            <br />Capacity: {zone.analysis.clinicRecommendation.capacity} beds
-            <br />Priority: {zone.analysis.clinicRecommendation.priority}
+          <div className="bg-blue-100 border border-blue-200 p-2 rounded">
+            <strong className="text-blue-900">🏥 Clinic Recommendation:</strong>
+            <br /><span className="text-blue-800">Type: {zone.analysis.clinicRecommendation.clinicType.replace(/-/g, ' ')}</span>
+            <br /><span className="text-blue-800">Capacity: {zone.analysis.clinicRecommendation.capacity} beds</span>
+            <br /><span className="text-blue-800">Priority: {zone.analysis.clinicRecommendation.priority}</span>
           </div>
           
-          <div className="bg-gray-50 p-2 rounded">
-            <strong>📊 Zone Stats:</strong>
-            <br />Population: {zone.population.toLocaleString()}
-            <br />Temperature: {zone.lst}°C
-            <br />Vegetation Index: {zone.ndvi}
+          <div className="bg-gray-100 border border-gray-300 p-2 rounded">
+            <strong className="text-gray-900">📊 Zone Stats:</strong>
+            <br /><span className="text-gray-800">Population: {zone.population.toLocaleString()}</span>
+            <br /><span className="text-gray-800">Temperature: {zone.lst}°C</span>
+            <br /><span className="text-gray-800">Vegetation Index: {zone.ndvi}</span>
           </div>
         </div>
       </div>
@@ -199,28 +199,28 @@ const ZoneAnalysis: React.FC<ZoneAnalysisProps> = ({ cityName }) => {
         <h3 className="text-lg font-bold mb-3">{cityName} Analysis Summary</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="bg-red-50 p-3 rounded">
-            <h4 className="font-semibold text-red-800 mb-2">🔥 Hotspots</h4>
-            <div>Extreme: {summary.hotspots.extreme}</div>
-            <div>Severe: {summary.hotspots.severe}</div>
-            <div>Moderate: {summary.hotspots.moderate}</div>
-            <div>Mild: {summary.hotspots.mild}</div>
+          <div className="bg-red-100 border border-red-200 p-3 rounded">
+            <h4 className="font-semibold text-red-900 mb-2">🔥 Hotspots</h4>
+            <div className="text-red-800">Extreme: {summary.hotspots.extreme}</div>
+            <div className="text-red-800">Severe: {summary.hotspots.severe}</div>
+            <div className="text-red-800">Moderate: {summary.hotspots.moderate}</div>
+            <div className="text-red-800">Mild: {summary.hotspots.mild}</div>
           </div>
           
-          <div className="bg-green-50 p-3 rounded">
-            <h4 className="font-semibold text-green-800 mb-2">🌳 Park Recommendations</h4>
-            <div>Highest Priority: {summary.parkRecommendations.highest}</div>
-            <div>High Priority: {summary.parkRecommendations.high}</div>
-            <div>Medium Priority: {summary.parkRecommendations.medium}</div>
-            <div>Low Priority: {summary.parkRecommendations.low}</div>
+          <div className="bg-green-100 border border-green-200 p-3 rounded">
+            <h4 className="font-semibold text-green-900 mb-2">🌳 Park Recommendations</h4>
+            <div className="text-green-800">Highest Priority: {summary.parkRecommendations.highest}</div>
+            <div className="text-green-800">High Priority: {summary.parkRecommendations.high}</div>
+            <div className="text-green-800">Medium Priority: {summary.parkRecommendations.medium}</div>
+            <div className="text-green-800">Low Priority: {summary.parkRecommendations.low}</div>
           </div>
           
-          <div className="bg-blue-50 p-3 rounded">
-            <h4 className="font-semibold text-blue-800 mb-2">🏥 Healthcare Recommendations</h4>
-            <div>Regional Hospitals: {summary.clinicRecommendations.regional}</div>
-            <div>Specialty Clinics: {summary.clinicRecommendations.specialty}</div>
-            <div>Primary Centers: {summary.clinicRecommendations.primary}</div>
-            <div>Community Posts: {summary.clinicRecommendations.community}</div>
+          <div className="bg-blue-100 border border-blue-200 p-3 rounded">
+            <h4 className="font-semibold text-blue-900 mb-2">🏥 Healthcare Recommendations</h4>
+            <div className="text-blue-800">Regional Hospitals: {summary.clinicRecommendations.regional}</div>
+            <div className="text-blue-800">Specialty Clinics: {summary.clinicRecommendations.specialty}</div>
+            <div className="text-blue-800">Primary Centers: {summary.clinicRecommendations.primary}</div>
+            <div className="text-blue-800">Community Posts: {summary.clinicRecommendations.community}</div>
           </div>
         </div>
       </div>
