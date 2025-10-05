@@ -5,10 +5,14 @@ const { ZoneAnalysis } = require('./algorithms');
 const { cityZonesData, getAllZones, getCityZones, getCityStats } = require('./city-zones-data');
 const { getAllCities, getCityByName, getCitiesByRegion, filterCities, searchCities } = require('./indian-cities-data');
 const { nasaDataFetcher } = require('./nasa-api-integration');
+const { DynamicZoneGenerator } = require('./dynamic-zone-generator');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Initialize dynamic zone generator
+const zoneGenerator = new DynamicZoneGenerator();
 
 // Initialize Gemini AI
 let genAI = null;
@@ -345,10 +349,25 @@ app.get('/api/zones/city/:cityName', (req, res) => {
 app.get('/api/analysis/city/:cityName', (req, res) => {
   console.log(`Zone analysis for ${req.params.cityName} requested`);
   const cityName = req.params.cityName;
-  const cityZones = getCityZones(cityName);
+  let cityZones = getCityZones(cityName);
+  let isGenerated = false;
   
+  // If no predefined zones exist, generate them dynamically
   if (!cityZones.length) {
-    return res.status(404).json({ error: 'City not found' });
+    console.log(`No predefined zones for ${cityName}, generating dynamically...`);
+    try {
+      const generatedCityData = zoneGenerator.generateZonesForCity(cityName);
+      cityZones = generatedCityData.zones;
+      isGenerated = true;
+      console.log(`✅ Generated ${cityZones.length} zones for ${cityName}`);
+    } catch (error) {
+      console.error(`Failed to generate zones for ${cityName}:`, error.message);
+      return res.status(404).json({ 
+        error: 'City not found or unable to generate zone data', 
+        cityName,
+        details: error.message 
+      });
+    }
   }
   
   try {
@@ -358,6 +377,8 @@ app.get('/api/analysis/city/:cityName', (req, res) => {
     res.json({
       cityName,
       ...analysis,
+      isGenerated,
+      dataSource: isGenerated ? 'dynamically-generated' : 'predefined',
       generatedAt: new Date().toISOString()
     });
   } catch (error) {
@@ -370,10 +391,18 @@ app.get('/api/analysis/city/:cityName', (req, res) => {
 app.get('/api/analysis/hotspots/:cityName', (req, res) => {
   console.log(`Hotspot analysis for ${req.params.cityName} requested`);
   const cityName = req.params.cityName;
-  const cityZones = getCityZones(cityName);
+  let cityZones = getCityZones(cityName);
+  let isGenerated = false;
   
+  // Use dynamic generator if no predefined zones
   if (!cityZones.length) {
-    return res.status(404).json({ error: 'City not found' });
+    try {
+      const generatedCityData = zoneGenerator.generateZonesForCity(cityName);
+      cityZones = generatedCityData.zones;
+      isGenerated = true;
+    } catch (error) {
+      return res.status(404).json({ error: 'City not found', cityName });
+    }
   }
   
   try {
@@ -401,10 +430,18 @@ app.get('/api/analysis/hotspots/:cityName', (req, res) => {
 app.get('/api/analysis/parks/:cityName', (req, res) => {
   console.log(`Park recommendations for ${req.params.cityName} requested`);
   const cityName = req.params.cityName;
-  const cityZones = getCityZones(cityName);
+  let cityZones = getCityZones(cityName);
+  let isGenerated = false;
   
+  // Use dynamic generator if no predefined zones
   if (!cityZones.length) {
-    return res.status(404).json({ error: 'City not found' });
+    try {
+      const generatedCityData = zoneGenerator.generateZonesForCity(cityName);
+      cityZones = generatedCityData.zones;
+      isGenerated = true;
+    } catch (error) {
+      return res.status(404).json({ error: 'City not found', cityName });
+    }
   }
   
   try {
@@ -437,10 +474,18 @@ app.get('/api/analysis/parks/:cityName', (req, res) => {
 app.get('/api/analysis/clinics/:cityName', (req, res) => {
   console.log(`Clinic placement analysis for ${req.params.cityName} requested`);
   const cityName = req.params.cityName;
-  const cityZones = getCityZones(cityName);
+  let cityZones = getCityZones(cityName);
+  let isGenerated = false;
   
+  // Use dynamic generator if no predefined zones
   if (!cityZones.length) {
-    return res.status(404).json({ error: 'City not found' });
+    try {
+      const generatedCityData = zoneGenerator.generateZonesForCity(cityName);
+      cityZones = generatedCityData.zones;
+      isGenerated = true;
+    } catch (error) {
+      return res.status(404).json({ error: 'City not found', cityName });
+    }
   }
   
   try {
