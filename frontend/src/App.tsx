@@ -333,7 +333,20 @@ function App() {
       {/* Filter Panel */}
       <AnimatePresence>
         {showFilters && (
-          <FilterPanel onClose={() => setShowFilters(false)} />
+          <FilterPanel 
+            onClose={() => setShowFilters(false)} 
+            onApplyFilters={() => {}} 
+            currentFilters={{
+              region: 'all',
+              tempMin: 20,
+              tempMax: 45,
+              aqiMin: 0,
+              aqiMax: 300,
+              ndviMin: 0.1,
+              ndviMax: 0.8,
+              risk: 'all'
+            }} 
+          />
         )}
       </AnimatePresence>
 

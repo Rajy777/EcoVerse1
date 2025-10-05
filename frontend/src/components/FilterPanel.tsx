@@ -1,12 +1,53 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Thermometer, Wind, Droplets, IndianRupee } from 'lucide-react';
+import { X, Thermometer, Wind, Droplets, MapPin } from 'lucide-react';
 
 interface FilterPanelProps {
   onClose: () => void;
+  onApplyFilters: (filters: FilterSettings) => void;
+  currentFilters: FilterSettings;
 }
 
-const FilterPanel: React.FC<FilterPanelProps> = ({ onClose }) => {
+interface FilterSettings {
+  region: string;
+  tempMin: number;
+  tempMax: number;
+  aqiMin: number;
+  aqiMax: number;
+  ndviMin: number;
+  ndviMax: number;
+  risk: string;
+}
+
+const FilterPanel: React.FC<FilterPanelProps> = ({ onClose, onApplyFilters, currentFilters }) => {
+  const [filters, setFilters] = useState<FilterSettings>(currentFilters);
+  
+  const handleSliderChange = (key: keyof FilterSettings, value: number) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const handleSelectChange = (key: keyof FilterSettings, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const handleApply = () => {
+    onApplyFilters(filters);
+    onClose();
+  };
+  
+  const handleReset = () => {
+    const defaultFilters = {
+      region: 'all',
+      tempMin: 20,
+      tempMax: 45,
+      aqiMin: 0,
+      aqiMax: 200,
+      ndviMin: 0.1,
+      ndviMax: 0.8,
+      risk: 'all'
+    };
+    setFilters(defaultFilters);
+  };
   return (
     <motion.div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
@@ -39,18 +80,37 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onClose }) => {
               <Thermometer className="w-5 h-5 text-orange-400" />
               <h3 className="text-white font-medium">Temperature Range (°C)</h3>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-white text-sm">20°</span>
-              <div className="flex-1 h-2 bg-white/20 rounded-full relative">
-                <div className="h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full w-3/4"></div>
-                <div className="absolute left-1/4 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
-                <div className="absolute left-3/4 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-300 mb-1 block">Minimum: {filters.tempMin}°C</label>
+                <input
+                  type="range"
+                  min="20"
+                  max="45"
+                  step="0.5"
+                  value={filters.tempMin}
+                  onChange={(e) => handleSliderChange('tempMin', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #f97316 0%, #f97316 ${(filters.tempMin - 20) / 25 * 100}%, rgba(255,255,255,0.2) ${(filters.tempMin - 20) / 25 * 100}%, rgba(255,255,255,0.2) 100%)`
+                  }}
+                />
               </div>
-              <span className="text-white text-sm">35°</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>Min: 25°C</span>
-              <span>Max: 32°C</span>
+              <div>
+                <label className="text-sm text-gray-300 mb-1 block">Maximum: {filters.tempMax}°C</label>
+                <input
+                  type="range"
+                  min="20"
+                  max="45"
+                  step="0.5"
+                  value={filters.tempMax}
+                  onChange={(e) => handleSliderChange('tempMax', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #ef4444 0%, #ef4444 ${(filters.tempMax - 20) / 25 * 100}%, rgba(255,255,255,0.2) ${(filters.tempMax - 20) / 25 * 100}%, rgba(255,255,255,0.2) 100%)`
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -60,18 +120,31 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onClose }) => {
               <Wind className="w-5 h-5 text-blue-400" />
               <h3 className="text-white font-medium">Air Quality Index</h3>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-white text-sm">0</span>
-              <div className="flex-1 h-2 bg-white/20 rounded-full relative">
-                <div className="h-2 bg-gradient-to-r from-green-500 to-yellow-500 rounded-full w-2/3"></div>
-                <div className="absolute left-1/3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
-                <div className="absolute left-2/3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-300 mb-1 block">Minimum: {filters.aqiMin} AQI</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="300"
+                  step="5"
+                  value={filters.aqiMin}
+                  onChange={(e) => handleSliderChange('aqiMin', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                />
               </div>
-              <span className="text-white text-sm">200</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>Min: 50 AQI</span>
-              <span>Max: 150 AQI</span>
+              <div>
+                <label className="text-sm text-gray-300 mb-1 block">Maximum: {filters.aqiMax} AQI</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="300"
+                  step="5"
+                  value={filters.aqiMax}
+                  onChange={(e) => handleSliderChange('aqiMax', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                />
+              </div>
             </div>
           </div>
 
@@ -81,72 +154,65 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onClose }) => {
               <Droplets className="w-5 h-5 text-green-400" />
               <h3 className="text-white font-medium">Vegetation Index (NDVI)</h3>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-white text-sm">0.1</span>
-              <div className="flex-1 h-2 bg-white/20 rounded-full relative">
-                <div className="h-2 bg-gradient-to-r from-yellow-600 to-green-500 rounded-full w-1/2"></div>
-                <div className="absolute left-1/4 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
-                <div className="absolute left-1/2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-300 mb-1 block">Minimum: {filters.ndviMin.toFixed(2)}</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="0.8"
+                  step="0.01"
+                  value={filters.ndviMin}
+                  onChange={(e) => handleSliderChange('ndviMin', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                />
               </div>
-              <span className="text-white text-sm">0.8</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>Min: 0.2</span>
-              <span>Max: 0.5</span>
+              <div>
+                <label className="text-sm text-gray-300 mb-1 block">Maximum: {filters.ndviMax.toFixed(2)}</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="0.8"
+                  step="0.01"
+                  value={filters.ndviMax}
+                  onChange={(e) => handleSliderChange('ndviMax', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Price Range Filter */}
-          <div>
-            <div className="flex items-center space-x-2 mb-3">
-              <IndianRupee className="w-5 h-5 text-green-400" />
-              <h3 className="text-white font-medium">Price Range</h3>
-            </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-white text-sm">₹10L</span>
-              <div className="flex-1 h-2 bg-white/20 rounded-full relative">
-                <div className="h-2 bg-gradient-to-r from-green-500 to-blue-500 rounded-full w-3/5"></div>
-                <div className="absolute left-1/3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
-                <div className="absolute left-3/5 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
-              </div>
-              <span className="text-white text-sm">₹1Cr</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>Min: ₹25L</span>
-              <span>Max: ₹60L</span>
-            </div>
-          </div>
 
           {/* Region Filter */}
           <div>
-            <h3 className="text-white font-medium mb-3">Maharashtra Regions</h3>
-            <div className="space-y-2">
-              {[
-                { name: 'Western Maharashtra', count: 8 },
-                { name: 'Vidarbha', count: 11 },
-                { name: 'Marathwada', count: 8 },
-                { name: 'Konkan', count: 7 },
-              ].map((region) => (
-                <label key={region.name} className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-eco-blue bg-transparent border-2 border-gray-400 rounded focus:ring-eco-blue focus:ring-2"
-                    defaultChecked
-                  />
-                  <span className="text-gray-300 flex-1">{region.name}</span>
-                  <span className="text-gray-500 text-sm">({region.count})</span>
-                </label>
-              ))}
-            </div>
+            <h3 className="text-white font-medium mb-3">Indian Regions</h3>
+            <select 
+              value={filters.region} 
+              onChange={(e) => handleSelectChange('region', e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:border-eco-blue focus:ring-1 focus:ring-eco-blue mb-2"
+            >
+              <option value="all" className="bg-gray-800">All Regions</option>
+              <option value="Northern" className="bg-gray-800">Northern India</option>
+              <option value="Western" className="bg-gray-800">Western India</option>
+              <option value="Southern" className="bg-gray-800">Southern India</option>
+              <option value="Eastern" className="bg-gray-800">Eastern India</option>
+              <option value="Central" className="bg-gray-800">Central India</option>
+            </select>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex space-x-3 mt-8">
-          <button className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition-colors">
+          <button 
+            onClick={handleReset}
+            className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition-colors"
+          >
             Reset
           </button>
-          <button className="flex-1 bg-gradient-to-r from-eco-blue to-eco-green py-3 rounded-lg text-white font-medium hover:shadow-lg transition-all duration-300">
+          <button 
+            onClick={handleApply}
+            className="flex-1 bg-gradient-to-r from-eco-blue to-eco-green py-3 rounded-lg text-white font-medium hover:shadow-lg transition-all duration-300"
+          >
             Apply Filters
           </button>
         </div>

@@ -3,17 +3,30 @@ import { motion } from 'framer-motion';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   MapPin, Thermometer, Wind, Droplets, Leaf, TrendingUp, TrendingDown,
-  Users, Building, Car, Factory 
+  Users, Building, Car, Factory, Filter, Search, BarChart3
 } from 'lucide-react';
+import FilterPanel from './FilterPanel';
+import CitySearch from './CitySearch';
+import CityDashboard from './CityDashboard';
 
-// Mock data for Maharashtra cities - inspired by your screenshots
-const maharashtraCities = [
-  { name: 'Mumbai', region: 'Konkan', temp: 31.9, aqi: 161, ndvi: 0.26, population: '12.4M', risk: 'high' },
-  { name: 'Pune', region: 'Western', temp: 27.8, aqi: 98, ndvi: 0.44, population: '3.1M', risk: 'low' },
-  { name: 'Nagpur', region: 'Vidarbha', temp: 38.4, aqi: 166, ndvi: 0.18, population: '2.4M', risk: 'high' },
-  { name: 'Nashik', region: 'Western', temp: 32.1, aqi: 142, ndvi: 0.31, population: '1.5M', risk: 'moderate' },
-  { name: 'Thane', region: 'Konkan', temp: 30.5, aqi: 155, ndvi: 0.29, population: '1.8M', risk: 'high' },
-  { name: 'Aurangabad', region: 'Marathwada', temp: 35.2, aqi: 134, ndvi: 0.22, population: '1.2M', risk: 'moderate' },
+// Pan-India city data - comprehensive coverage across regions
+const indianCities = [
+  // Northern India
+  { name: 'Delhi', region: 'Northern', temp: 42.8, aqi: 165, ndvi: 0.20, population: '32M', risk: 'critical' },
+  
+  // Western India  
+  { name: 'Mumbai', region: 'Western', temp: 36.9, aqi: 161, ndvi: 0.26, population: '20M', risk: 'high' },
+  { name: 'Pune', region: 'Western', temp: 30.2, aqi: 98, ndvi: 0.39, population: '6M', risk: 'low' },
+  { name: 'Ahmedabad', region: 'Western', temp: 38.4, aqi: 152, ndvi: 0.28, population: '8M', risk: 'high' },
+  
+  // Southern India
+  { name: 'Bangalore', region: 'Southern', temp: 26.5, aqi: 95, ndvi: 0.38, population: '12M', risk: 'low' },
+  { name: 'Chennai', region: 'Southern', temp: 34.2, aqi: 148, ndvi: 0.21, population: '10M', risk: 'high' },
+  { name: 'Hyderabad', region: 'Southern', temp: 32.8, aqi: 125, ndvi: 0.33, population: '9M', risk: 'moderate' },
+  
+  // Eastern India
+  { name: 'Kolkata', region: 'Eastern', temp: 32.4, aqi: 142, ndvi: 0.32, population: '14M', risk: 'high' },
+  { name: 'Bhubaneswar', region: 'Eastern', temp: 31.9, aqi: 118, ndvi: 0.41, population: '1M', risk: 'moderate' },
 ];
 
 // Temperature trend data
@@ -26,25 +39,28 @@ const temperatureTrend = [
   { month: 'Jun', temp: 33.4, avgTemp: 32.8 },
 ];
 
-// Air Quality Index data
+// Air Quality Index data - Pan-India cities
 const aqiData = [
+  { city: 'Bangalore', aqi: 95 },
   { city: 'Pune', aqi: 98 },
-  { city: 'Nashik', aqi: 142 },
-  { city: 'Thane', aqi: 155 },
+  { city: 'Bhubaneswar', aqi: 118 },
+  { city: 'Hyderabad', aqi: 125 },
+  { city: 'Kolkata', aqi: 142 },
+  { city: 'Chennai', aqi: 148 },
+  { city: 'Ahmedabad', aqi: 152 },
   { city: 'Mumbai', aqi: 161 },
-  { city: 'Nagpur', aqi: 166 },
-  { city: 'Aurangabad', aqi: 134 },
+  { city: 'Delhi', aqi: 165 },
 ];
 
-// Real-time statistics
+// Real-time statistics - Pan-India
 const realtimeStats = {
-  citiesMonitored: 34,
-  avgTemperature: 29.7,
-  airQualityIndex: 115,
-  vegetationIndex: 0.33,
-  temperatureChange: 2,
-  aqiChange: -8,
-  vegetationChange: 3,
+  citiesMonitored: 47,
+  avgTemperature: 33.2,
+  airQualityIndex: 133,
+  vegetationIndex: 0.31,
+  temperatureChange: 3,
+  aqiChange: -5,
+  vegetationChange: 2,
 };
 
 const StatCard = ({ title, value, unit, icon: Icon, change, changeType }: any) => {
@@ -85,6 +101,7 @@ const StatCard = ({ title, value, unit, icon: Icon, change, changeType }: any) =
 const CityCard = ({ city }: { city: any }) => {
   const getRiskColor = (risk: string) => {
     switch (risk) {
+      case 'critical': return 'bg-red-600/30 border-red-600/40 text-red-300';
       case 'high': return 'bg-red-500/20 border-red-500/30 text-red-400';
       case 'moderate': return 'bg-orange-500/20 border-orange-500/30 text-orange-400';
       case 'low': return 'bg-green-500/20 border-green-500/30 text-green-400';
@@ -107,7 +124,7 @@ const CityCard = ({ city }: { city: any }) => {
         </div>
       </div>
       
-      <div className="text-sm text-gray-300 mb-3">{city.region} Maharashtra</div>
+      <div className="text-sm text-gray-300 mb-3">{city.region} India</div>
       
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -146,8 +163,115 @@ const CityCard = ({ city }: { city: any }) => {
   );
 };
 
+// Filter settings interface
+interface FilterSettings {
+  region: string;
+  tempMin: number;
+  tempMax: number;
+  aqiMin: number;
+  aqiMax: number;
+  ndviMin: number;
+  ndviMax: number;
+  risk: string;
+}
+
 const MainDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [allCities, setAllCities] = useState<any[]>([]);
+  const [filteredCities, setFilteredCities] = useState<any[]>([]);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterSettings>({
+    region: 'all',
+    tempMin: 20,
+    tempMax: 45,
+    aqiMin: 0,
+    aqiMax: 300,
+    ndviMin: 0.1,
+    ndviMax: 0.8,
+    risk: 'all'
+  });
+
+  // Fetch all cities on component mount
+  useEffect(() => {
+    fetchAllCities();
+  }, []);
+
+  // Apply filters when filter settings change
+  useEffect(() => {
+    applyFilters();
+  }, [allCities, filters]);
+
+  const fetchAllCities = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/cities');
+      if (response.ok) {
+        const data = await response.json();
+        setAllCities(data.cities);
+        setFilteredCities(data.cities.slice(0, 9)); // Show first 9 cities initially
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const applyFilters = async () => {
+    if (allCities.length === 0) return;
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters.region !== 'all') queryParams.set('region', filters.region);
+      if (filters.tempMin > 20) queryParams.set('tempMin', filters.tempMin.toString());
+      if (filters.tempMax < 45) queryParams.set('tempMax', filters.tempMax.toString());
+      if (filters.aqiMin > 0) queryParams.set('aqiMin', filters.aqiMin.toString());
+      if (filters.aqiMax < 300) queryParams.set('aqiMax', filters.aqiMax.toString());
+      if (filters.ndviMin > 0.1) queryParams.set('ndviMin', filters.ndviMin.toString());
+      if (filters.ndviMax < 0.8) queryParams.set('ndviMax', filters.ndviMax.toString());
+      if (filters.risk !== 'all') queryParams.set('risk', filters.risk);
+
+      const response = await fetch(`http://localhost:5000/api/cities/filter?${queryParams.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setFilteredCities(data.cities);
+      }
+    } catch (error) {
+      console.error('Error applying filters:', error);
+    }
+  };
+
+  const handleApplyFilters = (newFilters: FilterSettings) => {
+    setFilters(newFilters);
+  };
+
+  const handleCitySelect = (city: any) => {
+    setSelectedCity(city);
+    setActiveTab('city-detail');
+  };
+
+  // Update statistics based on filtered cities
+  const getFilteredStats = () => {
+    if (filteredCities.length === 0) return realtimeStats;
+    
+    const avgTemp = filteredCities.reduce((sum, city) => sum + city.data.temperature, 0) / filteredCities.length;
+    const avgAQI = filteredCities.reduce((sum, city) => sum + city.data.aqi, 0) / filteredCities.length;
+    const avgNDVI = filteredCities.reduce((sum, city) => sum + city.data.ndvi, 0) / filteredCities.length;
+    
+    return {
+      citiesMonitored: filteredCities.length,
+      avgTemperature: Math.round(avgTemp * 10) / 10,
+      airQualityIndex: Math.round(avgAQI),
+      vegetationIndex: Math.round(avgNDVI * 100) / 100,
+      temperatureChange: 3,
+      aqiChange: -5,
+      vegetationChange: 2
+    };
+  };
+
+  const currentStats = getFilteredStats();
 
   return (
     <div className="min-h-screen p-6 max-w-7xl mx-auto">
@@ -160,22 +284,39 @@ const MainDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-green-200 bg-clip-text text-transparent">
-              Environmental Dashboard
+              EcoVerse Dashboard
             </h1>
-            <p className="text-gray-400 text-lg">Real-time monitoring across 34 Maharashtra cities</p>
+            <p className="text-gray-400 text-lg">
+              Real-time monitoring across {currentStats.citiesMonitored} major Indian cities
+              {filteredCities.length < allCities.length && ` (${allCities.length - filteredCities.length} filtered out)`}
+            </p>
           </div>
-          <div className="flex items-center space-x-2 bg-green-500/20 border border-green-500/30 rounded-lg px-4 py-2">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-green-400 text-sm font-medium">🤖 AI Assistant Active</span>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowFilterPanel(true)}
+              className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg px-4 py-2 transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              <span className="text-white text-sm font-medium">Filters</span>
+            </button>
+            <div className="flex items-center space-x-2 bg-green-500/20 border border-green-500/30 rounded-lg px-4 py-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-green-400 text-sm font-medium">🤖 AI + NASA Data</span>
+            </div>
           </div>
         </div>
       </motion.div>
+
+      {/* City Search */}
+      <div className="mb-8">
+        <CitySearch onCitySelect={handleCitySelect} />
+      </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Cities Monitored"
-          value={realtimeStats.citiesMonitored}
+          value={currentStats.citiesMonitored}
           unit=""
           icon={MapPin}
           change={5}
@@ -183,26 +324,26 @@ const MainDashboard = () => {
         />
         <StatCard
           title="Avg Temperature"
-          value={realtimeStats.avgTemperature}
+          value={currentStats.avgTemperature}
           unit="°C"
           icon={Thermometer}
-          change={realtimeStats.temperatureChange}
+          change={currentStats.temperatureChange}
           changeType="negative"
         />
         <StatCard
           title="Air Quality"
-          value={realtimeStats.airQualityIndex}
+          value={currentStats.airQualityIndex}
           unit="AQI"
           icon={Wind}
-          change={Math.abs(realtimeStats.aqiChange)}
+          change={Math.abs(currentStats.aqiChange)}
           changeType="positive"
         />
         <StatCard
           title="Vegetation Index"
-          value={realtimeStats.vegetationIndex}
+          value={currentStats.vegetationIndex}
           unit=""
           icon={Leaf}
-          change={realtimeStats.vegetationChange}
+          change={currentStats.vegetationChange}
           changeType="positive"
         />
       </div>
@@ -210,25 +351,29 @@ const MainDashboard = () => {
       {/* Tab Navigation */}
       <div className="flex space-x-1 bg-white/5 rounded-lg p-1 mb-8">
         {[
-          { id: 'overview', label: 'Overview' },
-          { id: 'interactive', label: 'Interactive Map' },
-          { id: '3d', label: '3D Earth View' },
+          { id: 'overview', label: 'Overview', icon: BarChart3 },
+          { id: 'city-detail', label: selectedCity ? `${selectedCity.name} Details` : 'City Details', icon: MapPin },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-lg transition-all duration-300 ${
+            disabled={tab.id === 'city-detail' && !selectedCity}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${
               activeTab === tab.id
                 ? 'bg-white/20 text-white'
                 : 'text-gray-400 hover:text-white hover:bg-white/10'
-            }`}
+            } ${tab.id === 'city-detail' && !selectedCity ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {tab.label}
+            <tab.icon className="w-4 h-4" />
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
       {/* Main Content Area */}
+      {activeTab === 'city-detail' && selectedCity ? (
+        <CityDashboard city={selectedCity} />
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Charts Section */}
         <div className="lg:col-span-2 space-y-6">
@@ -307,64 +452,39 @@ const MainDashboard = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h3 className="text-xl font-semibold text-white mb-4">City Monitoring</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white">Cities Monitoring</h3>
+              <span className="text-sm text-gray-400">
+                {isLoading ? 'Loading...' : `${filteredCities.length} cities`}
+              </span>
+            </div>
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {maharashtraCities.map((city, index) => (
-                <CityCard key={city.name} city={city} />
-              ))}
+              {isLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-eco-blue"></div>
+                </div>
+              ) : (
+                filteredCities.slice(0, 8).map((city, index) => (
+                  <div key={city.name} onClick={() => handleCitySelect(city)} className="cursor-pointer">
+                    <CityCard city={city} />
+                  </div>
+                ))
+              )}
             </div>
           </motion.div>
 
-          {/* Filter Panel */}
-          <motion.div
-            className="glass rounded-xl p-6"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <h3 className="text-xl font-semibold text-white mb-4">Filters</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Temperature Range (°C)</label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-white">20°</span>
-                  <div className="flex-1 h-2 bg-white/20 rounded-full">
-                    <div className="h-2 bg-gradient-to-r from-eco-blue to-eco-green rounded-full w-3/4"></div>
-                  </div>
-                  <span className="text-white">35°</span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Air Quality Index</label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-white">0</span>
-                  <div className="flex-1 h-2 bg-white/20 rounded-full">
-                    <div className="h-2 bg-gradient-to-r from-eco-blue to-eco-green rounded-full w-2/3"></div>
-                  </div>
-                  <span className="text-white">200</span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Price Range</label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-white">₹10L</span>
-                  <div className="flex-1 h-2 bg-white/20 rounded-full">
-                    <div className="h-2 bg-gradient-to-r from-eco-blue to-eco-green rounded-full w-1/2"></div>
-                  </div>
-                  <span className="text-white">₹1Cr</span>
-                </div>
-              </div>
-            </div>
-            
-            <button className="w-full mt-6 bg-gradient-to-r from-eco-blue to-eco-green py-2 rounded-lg text-white font-medium hover:shadow-lg transition-all duration-300">
-              Reset
-            </button>
-          </motion.div>
         </div>
       </div>
+      )}
+
+      {/* Filter Panel */}
+      {showFilterPanel && (
+        <FilterPanel
+          onClose={() => setShowFilterPanel(false)}
+          onApplyFilters={handleApplyFilters}
+          currentFilters={filters}
+        />
+      )}
     </div>
   );
 };

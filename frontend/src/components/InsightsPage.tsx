@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart as RechartsBarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Brain, Sparkles, TrendingUp, AlertTriangle, Lightbulb, MessageSquare, MapPin, BarChart3 as BarChart } from 'lucide-react';
+import { Brain, Sparkles, TrendingUp, AlertTriangle, Lightbulb, MessageSquare, MapPin, BarChart3 as BarChart, Search } from 'lucide-react';
 import EnvironmentalMap from './EnvironmentalMap';
 import ZoneAnalysis from './ZoneAnalysis';
+import InsightsCitySearch from './InsightsCitySearch';
 
 // Mock data for insights
 const cityComparison = [
@@ -112,8 +113,9 @@ const InsightCard = ({ insight }: { insight: any }) => {
 
 const InsightsPage = () => {
   const [activeInsight, setActiveInsight] = useState('all');
-  const [activeView, setActiveView] = useState('charts'); // 'charts' or 'map' or 'zones'
+  const [activeView, setActiveView] = useState('charts'); // 'charts' or 'map' or 'zones' or 'city-search'
   const [selectedCity, setSelectedCity] = useState('Mumbai');
+  const [searchSelectedCity, setSearchSelectedCity] = useState<any>(null);
   const [chatMessage, setChatMessage] = useState('');
   const [chatResponse, setChatResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -129,7 +131,7 @@ const InsightsPage = () => {
         const citiesResponse = await fetch('http://localhost:5000/api/cities');
         if (citiesResponse.ok) {
           const citiesData = await citiesResponse.json();
-          setCities(citiesData);
+          setCities(citiesData.cities || []);
         }
 
         // Fetch AI insights
@@ -178,6 +180,15 @@ const InsightsPage = () => {
         setChatMessage('');
       }
     }
+  };
+
+  // City search handlers
+  const handleCitySelect = (city: any) => {
+    setSearchSelectedCity(city);
+  };
+
+  const handleClearCity = () => {
+    setSearchSelectedCity(null);
   };
 
   return (
@@ -231,6 +242,17 @@ const InsightsPage = () => {
               <Brain size={18} />
               <span>Zone Analysis</span>
             </button>
+            <button
+              onClick={() => setActiveView('city-search')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 flex items-center space-x-2 ${
+                activeView === 'city-search'
+                  ? 'bg-white/20 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Search size={18} />
+              <span>City Search</span>
+            </button>
           </div>
         </div>
       </motion.div>
@@ -238,7 +260,62 @@ const InsightsPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-6">
-          {activeView === 'zones' ? (
+          {activeView === 'city-search' ? (
+            /* City Search View */
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-6"
+            >
+              {/* City Search Component */}
+              <div className="glass rounded-xl p-6">
+                <h3 className="text-xl font-semibold text-white mb-6">City-Specific Environmental Analysis</h3>
+                <InsightsCitySearch
+                  onCitySelect={handleCitySelect}
+                  selectedCity={searchSelectedCity}
+                  onClear={handleClearCity}
+                />
+              </div>
+              
+              {/* Show Zone Analysis and Map for Selected City */}
+              {searchSelectedCity && (
+                <>
+                  {/* Zone Analysis for Selected City */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                  >
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4">
+                        Zone Analysis - {searchSelectedCity.name}
+                      </h3>
+                      <ZoneAnalysis cityName={searchSelectedCity.name} />
+                    </div>
+                  </motion.div>
+                  
+                  {/* Map View for Selected City */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                  >
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4">
+                        Environmental Map - {searchSelectedCity.name}
+                      </h3>
+                      <EnvironmentalMap 
+                        cities={[searchSelectedCity]} 
+                        insights={backendInsights.length > 0 ? backendInsights : insights}
+                        focusCity={searchSelectedCity}
+                      />
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </motion.div>
+          ) : activeView === 'zones' ? (
             /* Zone Analysis View */
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -250,7 +327,7 @@ const InsightsPage = () => {
               <div className="glass rounded-xl p-4">
                 <h3 className="text-lg font-semibold text-white mb-3">Select City for Analysis</h3>
                 <div className="flex flex-wrap gap-2">
-                  {['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Aurangabad', 'Thane'].map((city) => (
+                  {['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Hyderabad', 'Ahmedabad', 'Jaipur', 'Kochi'].map((city) => (
                     <button
                       key={city}
                       onClick={() => setSelectedCity(city)}

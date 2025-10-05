@@ -28,10 +28,14 @@ interface CityData {
 interface EnvironmentalMapProps {
   cities: CityData[];
   insights?: any[];
+  focusCity?: any;
 }
 
-const EnvironmentalMap: React.FC<EnvironmentalMapProps> = ({ cities, insights = [] }) => {
+const EnvironmentalMap: React.FC<EnvironmentalMapProps> = ({ cities = [], insights = [], focusCity }) => {
   const [activeMetric, setActiveMetric] = useState<'temperature' | 'aqi' | 'ndvi'>('aqi');
+  
+  // Ensure cities is an array
+  const safeCities = Array.isArray(cities) ? cities : [];
 
   const getMarkerColor = (city: CityData, metric: string) => {
     const value = city.data[metric as keyof typeof city.data];
@@ -83,13 +87,18 @@ const EnvironmentalMap: React.FC<EnvironmentalMapProps> = ({ cities, insights = 
     }
   };
 
-  // Maharashtra center coordinates
+  // Determine map center and zoom based on focusCity
   const maharashtraCenter: [number, number] = [19.7515, 75.7139];
+  const mapCenter: [number, number] = focusCity ? 
+    [focusCity.coordinates.lat, focusCity.coordinates.lng] : maharashtraCenter;
+  const mapZoom = focusCity ? 10 : 7;
 
   return (
     <div className="glass rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-semibold text-white">Environmental Data Map</h3>
+        <h3 className="text-xl font-semibold text-white">
+          {focusCity ? `${focusCity.name} - Environmental Data` : 'Environmental Data Map'}
+        </h3>
         
         {/* Metric selector */}
         <div className="flex space-x-2">
@@ -116,8 +125,9 @@ const EnvironmentalMap: React.FC<EnvironmentalMapProps> = ({ cities, insights = 
 
       <div className="relative h-96 rounded-lg overflow-hidden">
         <MapContainer
-          center={maharashtraCenter}
-          zoom={7}
+          center={mapCenter}
+          zoom={mapZoom}
+          key={focusCity ? focusCity.name : 'general'}
           style={{ height: '100%', width: '100%' }}
           className="rounded-lg"
         >
@@ -126,9 +136,9 @@ const EnvironmentalMap: React.FC<EnvironmentalMapProps> = ({ cities, insights = 
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           
-          {cities.map((city) => (
+          {safeCities.map((city, index) => (
             <CircleMarker
-              key={city.id}
+              key={city.id || index}
               center={[city.coordinates.lat, city.coordinates.lng]}
               radius={getMarkerSize(city, activeMetric)}
               pathOptions={{

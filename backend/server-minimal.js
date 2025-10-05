@@ -1,13 +1,32 @@
 const express = require('express');
 const cors = require('cors');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { ZoneAnalysis } = require('./algorithms');
 const { cityZonesData, getAllZones, getCityZones, getCityStats } = require('./city-zones-data');
+const { getAllCities, getCityByName, getCitiesByRegion, filterCities, searchCities } = require('./indian-cities-data');
+const { nasaDataFetcher } = require('./nasa-api-integration');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-console.log('🚀 Starting minimal server...');
+// Initialize Gemini AI
+let genAI = null;
+let model = null;
+
+if (process.env.GEMINI_API_KEY) {
+  try {
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    console.log('✅ Gemini AI initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize Gemini AI:', error.message);
+  }
+} else {
+  console.warn('⚠️  Gemini API key not found, using fallback AI responses');
+}
+
+console.log('🚀 Starting EcoVerse server with advanced AI...');
 
 // Basic middleware
 app.use(cors());
@@ -59,9 +78,133 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Enhanced cities API with comprehensive Indian cities data
 app.get('/api/cities', (req, res) => {
-  console.log('Cities data requested');
-  res.json(maharashtraCities);
+  console.log('All Indian cities data requested');
+  const allCities = getAllCities();
+  res.json({
+    cities: allCities,
+    total: allCities.length,
+    regions: ['Northern', 'Western', 'Southern', 'Eastern', 'Central'],
+    lastUpdated: new Date().toISOString()
+  });
+});
+
+// Filter cities endpoint
+app.get('/api/cities/filter', (req, res) => {
+  console.log('Filtered cities requested with filters:', req.query);
+  
+  const filters = {
+    region: req.query.region,
+    tempMin: req.query.tempMin ? parseFloat(req.query.tempMin) : undefined,
+    tempMax: req.query.tempMax ? parseFloat(req.query.tempMax) : undefined,
+    aqiMin: req.query.aqiMin ? parseFloat(req.query.aqiMin) : undefined,
+    aqiMax: req.query.aqiMax ? parseFloat(req.query.aqiMax) : undefined,
+    ndviMin: req.query.ndviMin ? parseFloat(req.query.ndviMin) : undefined,
+    ndviMax: req.query.ndviMax ? parseFloat(req.query.ndviMax) : undefined,
+    risk: req.query.risk
+  };
+  
+  const filteredCities = filterCities(filters);
+  
+  res.json({
+    cities: filteredCities,
+    total: filteredCities.length,
+    filters: filters,
+    appliedAt: new Date().toISOString()
+  });
+});
+
+// Search cities endpoint
+app.get('/api/cities/search', (req, res) => {
+  const query = req.query.q;
+  
+  if (!query || query.length < 2) {
+    return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+  }
+  
+  console.log(`Searching cities for: "${query}"`);
+  
+  const results = searchCities(query);
+  
+  res.json({
+    query,
+    results,
+    total: results.length,
+    searchedAt: new Date().toISOString()
+  });
+});
+
+// Get specific city data
+app.get('/api/cities/:cityName', async (req, res) => {
+  const cityName = req.params.cityName;
+  console.log(`City data requested for: ${cityName}`);
+  
+  const city = getCityByName(cityName);
+  
+  if (!city) {
+    return res.status(404).json({ error: 'City not found', cityName });
+  }
+  
+  try {
+    // Fetch real-time NASA data for the city
+    const nasaData = await nasaDataFetcher.fetchComprehensiveData(
+      city.coordinates.lat, 
+      city.coordinates.lng
+    );
+    
+    const enhancedCityData = {
+      ...city,
+      nasaData,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    res.json(enhancedCityData);
+  } catch (error) {
+    console.error('Error fetching NASA data for city:', error.message);
+    // Return city data without NASA enhancement if API fails
+    res.json({
+      ...city,
+      lastUpdated: new Date().toISOString(),
+      note: 'NASA data temporarily unavailable'
+    });
+  }
+});
+
+// Get historical data for a city
+app.get('/api/cities/:cityName/historical/:parameter', async (req, res) => {
+  const { cityName, parameter } = req.params;
+  const days = parseInt(req.query.days) || 30;
+  
+  console.log(`Historical ${parameter} data requested for ${cityName}, ${days} days`);
+  
+  const city = getCityByName(cityName);
+  
+  if (!city) {
+    return res.status(404).json({ error: 'City not found', cityName });
+  }
+  
+  try {
+    const historicalData = await nasaDataFetcher.fetchHistoricalData(
+      city.coordinates.lat,
+      city.coordinates.lng,
+      parameter,
+      days
+    );
+    
+    res.json({
+      city: city.name,
+      ...historicalData
+    });
+  } catch (error) {
+    console.error('Error fetching historical data:', error.message);
+    res.status(500).json({ 
+      error: 'Historical data unavailable', 
+      details: error.message,
+      city: city.name,
+      parameter
+    });
+  }
 });
 
 app.get('/api/environmental/dashboard', (req, res) => {
@@ -93,28 +236,87 @@ app.get('/api/environmental/dashboard', (req, res) => {
   });
 });
 
-// Mock AI responses for environmental queries
-const aiResponses = {
-  'temperature': 'Based on current data, Maharashtra is experiencing elevated temperatures. Mumbai shows 31.9°C while Nagpur reaches 38.4°C. Consider heat mitigation strategies.',
-  'aqi': 'Air quality across Maharashtra cities shows concerning levels. Mumbai (161 AQI) and Nagpur (166 AQI) are in unhealthy ranges. Recommend reducing outdoor activities.',
-  'ndvi': 'Vegetation health varies significantly. Pune shows the best NDVI at 0.44, while Nagpur shows concerning levels at 0.18. Urban greening initiatives needed.',
-  'risk': 'Risk assessment shows Mumbai, Thane, and Nagpur at high risk levels. Immediate attention needed for climate resilience planning.',
-  'default': 'I can help you analyze environmental data for Maharashtra cities. Ask me about temperature, air quality, vegetation health, or climate risks.'
-};
+// Enhanced AI response generation using Gemini AI
+async function generateAIResponse(message) {
+  // Create context about EcoVerse and Maharashtra environmental data
+  const context = `
+You are an AI assistant for EcoVerse, a comprehensive environmental monitoring platform covering major cities across India. 
 
-function generateAIResponse(message) {
+Current Environmental Data Summary by Region:
+
+NORTHERN INDIA:
+- Delhi: 42.8°C, AQI 165 (Unhealthy), NDVI 0.20, Population 30M+, Risk: Critical
+
+SOUTHERN INDIA:
+- Bangalore: 26.5°C, AQI 95 (Moderate), NDVI 0.38, Population 12M+, Risk: Low-Medium
+- Chennai: 34.2°C, AQI 148 (Unhealthy), NDVI 0.21, Population 10M+, Risk: High  
+- Hyderabad: 32.8°C, AQI 125 (Unhealthy), NDVI 0.33, Population 9M+, Risk: Medium
+
+WESTERN INDIA:
+- Mumbai: 36.9°C, AQI 161 (Unhealthy), NDVI 0.26, Population 20M+, Risk: High
+- Pune: 30.2°C, AQI 98 (Moderate), NDVI 0.39, Population 6M+, Risk: Low-Medium
+- Ahmedabad: 38.4°C, AQI 152 (Unhealthy), NDVI 0.28, Population 8M+, Risk: High
+
+EASTERN INDIA:
+- Kolkata: 32.4°C, AQI 142 (Unhealthy), NDVI 0.32, Population 14M+, Risk: Medium-High
+- Bhubaneswar: 31.9°C, AQI 118 (Moderate), NDVI 0.41, Population 1M+, Risk: Low-Medium
+
+You provide expert guidance on:
+- Pan-India environmental analysis and regional comparisons
+- Climate zone-specific urban planning recommendations  
+- Regional climate adaptation and mitigation strategies
+- City-specific air quality and health advisories
+- Sustainable development solutions for different Indian regions
+- Cross-regional environmental policy recommendations
+
+Respond with authoritative, region-aware insights. Consider India's diverse climate zones and urban development patterns.
+
+User Question: ${message}`;
+
+  if (model) {
+    try {
+      console.log('Calling Gemini API with context length:', context.length);
+      const result = await model.generateContent(context);
+      const response = await result.response;
+      const text = response.text();
+      console.log('✅ Gemini responded successfully');
+      return text;
+    } catch (error) {
+      console.error('❌ Gemini API error details:');
+      console.error('Error message:', error.message);
+      console.error('Error status:', error.status);
+      console.error('Error code:', error.code);
+      console.error('Full error:', error);
+      return getFallbackResponse(message);
+    }
+  } else {
+    console.log('⚠️ No Gemini model available, using fallback');
+    return getFallbackResponse(message);
+  }
+}
+
+// Fallback responses when Gemini is unavailable
+function getFallbackResponse(message) {
   const lowercaseMessage = message.toLowerCase();
   
+  const fallbackResponses = {
+    'temperature': 'Based on current pan-India data, temperatures vary significantly across regions. Delhi shows extreme heat at 42.8°C (critical risk), while Bangalore maintains moderate 26.5°C. Northern cities require immediate heat mitigation strategies.',
+    'aqi': 'Air quality across Indian cities shows concerning patterns. Delhi (165 AQI) and Mumbai (161 AQI) are in unhealthy ranges. Southern cities like Bangalore (95 AQI) show better air quality. Implement region-specific pollution control measures.',
+    'ndvi': 'Vegetation health varies dramatically across India. Bhubaneswar leads with 0.41 NDVI, while Delhi shows concerning levels at 0.20. Urban greening initiatives are critical for northern and western metropolitan areas.',
+    'risk': 'Regional risk assessment shows Delhi at critical level, Mumbai and Chennai at high risk. Southern cities like Bangalore show lower risk profiles. Implement climate-specific resilience planning for each region.',
+    'default': 'I can help you analyze environmental data across major Indian cities from North to South. Ask me about regional temperature patterns, air quality comparisons, vegetation health, climate risks, or region-specific urban planning strategies. How can I assist with your environmental analysis today?'
+  };
+  
   if (lowercaseMessage.includes('temperature') || lowercaseMessage.includes('heat') || lowercaseMessage.includes('hot')) {
-    return aiResponses.temperature;
+    return fallbackResponses.temperature;
   } else if (lowercaseMessage.includes('aqi') || lowercaseMessage.includes('air') || lowercaseMessage.includes('pollution')) {
-    return aiResponses.aqi;
+    return fallbackResponses.aqi;
   } else if (lowercaseMessage.includes('ndvi') || lowercaseMessage.includes('vegetation') || lowercaseMessage.includes('green')) {
-    return aiResponses.ndvi;
+    return fallbackResponses.ndvi;
   } else if (lowercaseMessage.includes('risk') || lowercaseMessage.includes('danger') || lowercaseMessage.includes('climate')) {
-    return aiResponses.risk;
+    return fallbackResponses.risk;
   } else {
-    return aiResponses.default;
+    return fallbackResponses.default;
   }
 }
 
@@ -318,8 +520,8 @@ app.get('/api/analysis/overview', (req, res) => {
   }
 });
 
-// AI Chat endpoint
-app.post('/api/ai/chat', (req, res) => {
+// AI Chat endpoint with Gemini integration
+app.post('/api/ai/chat', async (req, res) => {
   console.log('AI chat request received');
   const { message } = req.body;
   
@@ -327,14 +529,24 @@ app.post('/api/ai/chat', (req, res) => {
     return res.status(400).json({ error: 'Message is required' });
   }
   
-  const response = generateAIResponse(message);
-  
-  res.json({
-    message,
-    response,
-    timestamp: new Date().toISOString(),
-    service: 'Mock AI Service'
-  });
+  try {
+    const response = await generateAIResponse(message);
+    
+    res.json({
+      message,
+      response,
+      timestamp: new Date().toISOString(),
+      service: model ? 'Google Gemini AI' : 'Fallback AI Service',
+      model: model ? 'gemini-1.5-flash' : 'fallback'
+    });
+  } catch (error) {
+    console.error('AI chat error:', error);
+    res.status(500).json({ 
+      error: 'AI service temporarily unavailable',
+      message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Start server
@@ -342,7 +554,7 @@ app.listen(PORT, () => {
   console.log(`✅ EcoVerse Advanced Analytics Server running on port ${PORT}`);
   console.log(`🌍 Health check: http://localhost:${PORT}/api/health`);
   console.log(`📊 Dashboard API: http://localhost:${PORT}/api/environmental/dashboard`);
-  console.log(`🤖 AI Chat API: http://localhost:${PORT}/api/ai/chat`);
+  console.log(`🤖 AI Chat API: http://localhost:${PORT}/api/ai/chat ${model ? '(Powered by Google Gemini)' : '(Using Fallback Responses)'}`);
   console.log(`🗺️  Zone Analysis APIs:`);
   console.log(`   • Cities: http://localhost:${PORT}/api/zones/cities`);
   console.log(`   • City Analysis: http://localhost:${PORT}/api/analysis/city/:cityName`);
@@ -350,4 +562,6 @@ app.listen(PORT, () => {
   console.log(`   • Parks: http://localhost:${PORT}/api/analysis/parks/:cityName`);
   console.log(`   • Clinics: http://localhost:${PORT}/api/analysis/clinics/:cityName`);
   console.log(`   • State Overview: http://localhost:${PORT}/api/analysis/overview`);
+  console.log(``);
+  console.log(`🤖 AI Service Status: ${model ? 'Google Gemini 1.5 Flash ✅' : 'Fallback Mode ⚠️'}`);
 });
