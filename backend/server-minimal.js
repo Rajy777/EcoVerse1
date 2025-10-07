@@ -32,8 +32,16 @@ if (process.env.GEMINI_API_KEY) {
 
 console.log('🚀 Starting EcoVerse server with advanced AI...');
 
-// Basic middleware
-app.use(cors());
+// Basic middleware with production CORS
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://ecoverse-frontend.onrender.com'] 
+    : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // In-memory data store
